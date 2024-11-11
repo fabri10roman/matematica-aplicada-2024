@@ -49,11 +49,20 @@ def preprocess_dataframe(df):
 
 def analyze_sentiment(df):
     sia = SentimentIntensityAnalyzer()
+    execution_times = []
 
     # Aplica la función polarity_scores a cada sentencia en la columna 'sentence'
-    df['puntaje_positivo'] = df['sentence'].apply(lambda x: sia.polarity_scores(x)['pos'])
-    df['puntaje_negativo'] = df['sentence'].apply(lambda x: sia.polarity_scores(x)['neg'])
+    for index, sentence in df['sentence'].items():
+        start_time = time.time()
+        scores = sia.polarity_scores(sentence)  # Obtención de puntajes
+        end_time = time.time()
+        tiempo_ejecucion = end_time - start_time
 
+        df.at[index, 'puntaje_positivo'] = scores['pos']
+        df.at[index, 'puntaje_negativo'] = scores['neg']
+        execution_times.append(tiempo_ejecucion)
+
+    df['tiempo_ejecucion'] = execution_times
     return df
 
 def generate_fuzzy_logic():
@@ -120,13 +129,10 @@ def process_sentiments(df, sentiment):
     result = []
 
     for index, row in df.iterrows():
-        start_time = time.time()
         sentiment.input['positive'] = row['puntaje_positivo']
         sentiment.input['negative'] = row['puntaje_negativo']
         # Realiza el proceso de inferencia difusa y defuzzificación
-        sentiment.compute()  # Se hacen los cálculos de las reglas, se utiliza el Mamdani Inference y se realiza la defuzzificación
-        end_time = time.time()
-        execution_time = end_time - start_time
+        sentiment.compute()  # Se hacen los cálculos de las reglas, se utiliza la interferencia Mamdani y se realiza la defuzzificación por el metodo centroide
 
         sentiment_output.append(sentiment.output['output'])
         result.append({
@@ -134,8 +140,8 @@ def process_sentiments(df, sentiment):
             'Label Orignial': row['sentiment'],
             'Puntaje Positivo': row['puntaje_positivo'],
             'Puntaje Negativo': row['puntaje_negativo'],
+            'Tiempo de Ejecucion': row['tiempo_ejecucion'],
             'Resultado de Inferencia': sentiment.output['output'],
-            'Tiempo de Ejecucion': execution_time
         })
 
     df['resultado_inferencia'] = sentiment_output
